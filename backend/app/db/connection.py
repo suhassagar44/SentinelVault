@@ -17,9 +17,20 @@ def get_db_path() -> Path:
     p = Path(env_path)
     if p.is_absolute():
         return p
-    if Path.cwd().name == "backend":
-        return Path.cwd() / p
-    return Path.cwd() / "backend" / p
+    
+    backend_root = Path(__file__).resolve().parent.parent.parent
+    repo_root = backend_root.parent
+    candidates = [
+        Path.cwd() / p,
+        Path.cwd() / "backend" / p,
+        backend_root / p,
+        repo_root / p,
+        repo_root / "backend" / p,
+    ]
+    for c in candidates:
+        if c.exists():
+            return c
+    return backend_root / p
 
 
 def get_connection() -> sqlite3.Connection:
@@ -33,13 +44,25 @@ def get_connection() -> sqlite3.Connection:
     # If the database directory is read-only (e.g. AWS Lambda / Vercel Serverless), fallback to /tmp
     if os.getenv("VERCEL") or (not os.access(str(db_path.parent), os.W_OK) and not str(db_path).startswith("/tmp")):
         tmp_db = Path("/tmp/hotfix_mvp.db")
-        if not tmp_db.exists() and db_path.exists():
-            import shutil
-            try:
-                tmp_db.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(str(db_path), str(tmp_db))
-            except Exception:
-                pass
+        if not tmp_db.exists():
+            backend_root = Path(__file__).resolve().parent.parent.parent
+            repo_root = backend_root.parent
+            seed_candidates = [
+                db_path,
+                backend_root / "hotfix_mvp.db",
+                repo_root / "backend" / "hotfix_mvp.db",
+                repo_root / "hotfix_mvp.db",
+                Path.cwd() / "backend" / "hotfix_mvp.db",
+            ]
+            for sdb in seed_candidates:
+                if sdb.exists():
+                    import shutil
+                    try:
+                        tmp_db.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copyfile(str(sdb), str(tmp_db))
+                        break
+                    except Exception:
+                        pass
         if tmp_db.exists():
             db_path = tmp_db
 

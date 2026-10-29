@@ -117,6 +117,14 @@ class Settings:
         self.app_config: ApplicationSettings = self._load_app_config(self.app_yaml_path)
         self.spec_config: SpecSettings = self._load_spec_config(self.spec_yaml_path)
 
+        # Dynamically append CORS origins from environment variables if provided
+        env_cors = os.getenv("HOTFIX_CORS_ORIGIN") or os.getenv("HOTFIX_CORS_ORIGINS")
+        if env_cors:
+            for origin in env_cors.split(","):
+                cleaned = origin.strip()
+                if cleaned and cleaned not in self.app_config.server.cors_origins:
+                    self.app_config.server.cors_origins.append(cleaned)
+
         # Enforce fail-closed privacy invariants
         self._enforce_privacy_release_invariants()
 
@@ -133,16 +141,20 @@ class Settings:
 
     def _resolve_path(self, rel_or_abs: str) -> Path:
         p = Path(rel_or_abs)
-        if p.is_absolute():
+        if p.is_absolute() and p.exists():
             return p
-        # Check relative to cwd
-        if (Path.cwd() / p).exists():
-            return Path.cwd() / p
-        # Check relative to repo root
-        if (self.root_dir / p).exists():
-            return self.root_dir / p
-        # Fallback to direct path
-        return self.root_dir / p
+        # Check candidates across working directory, repo root, and backend module paths
+        candidates = [
+            Path.cwd() / p,
+            self.root_dir / p,
+            self.root_dir / "backend" / p,
+            Path(__file__).resolve().parent.parent.parent / p,
+            Path(__file__).resolve().parent.parent.parent.parent / p,
+        ]
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return p if p.is_absolute() else (self.root_dir / p)
 
     def _load_app_config(self, path: Path) -> ApplicationSettings:
         if not path.exists():

@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: sentinelvault-api
+    env: python
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: python -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHONPATH
+        value: backend
+      - key: HOTFIX_CONFIG_PATH
+        value: config/app.yaml
+      - key: HOTFIX_SPEC_PATH
+        value: config/spec.yaml
+      - key: HOTFIX_DB_PATH
+        value: backend/hotfix_mvp.db
+    healthCheckPath: /health
+
+  - type: web
+    name: sentinelvault-ui
+    env: static
+    plan: free
+    buildCommand: npm install --prefix frontend && npm run build --prefix frontend
+    staticPublishPath: frontend/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        value: ""

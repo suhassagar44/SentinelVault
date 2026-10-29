@@ -49,11 +49,15 @@ def create_application() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Configure CORS for frontend access (supporting local dev and Vercel deployments)
+    # Configure CORS for frontend access (supporting local dev, Vercel, Netlify, Render, Railway, etc.)
+    cors_regex = os.getenv(
+        "HOTFIX_CORS_REGEX",
+        r"https?://.*(\.vercel\.app|\.netlify\.app|\.onrender\.com|\.pages\.dev|\.railway\.app|\.fly\.dev|localhost(:\d+)?|127\.0\.0\.1(:\d+)?)"
+    )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.app_config.server.cors_origins,
-        allow_origin_regex=r"https://.*\.vercel\.app",
+        allow_origin_regex=cors_regex,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -90,7 +94,7 @@ def create_application() -> FastAPI:
         response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data:; connect-src 'self' http://localhost:8000 http://127.0.0.1:8000; frame-ancestors 'none';"
+            "img-src 'self' data:; connect-src 'self' https: http: ws: wss: data: blob:; frame-ancestors 'none';"
         )
         return response
 

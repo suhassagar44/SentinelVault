@@ -20,7 +20,8 @@ import {
 } from '../types/system';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
-const REQUEST_TIMEOUT_MS = 2500;
+const REQUEST_TIMEOUT_MS = 15000;
+
 
 export class ApiError extends Error {
   constructor(
